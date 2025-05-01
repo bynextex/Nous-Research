@@ -52,16 +52,16 @@ If you prefer to run the application locally:
 #### Installation Steps
 
 1. Clone the repository or download the code
-git clone https://github.com/bynextex/Nous-Research.git
-cd nous-chat
+<br>git clone https://github.com/bynextex/Nous-Research.git
+<br>cd nous-chat
 
 
 2. Install the required dependencies
-pip install -r requirements.txt
+<br>pip install -r requirements.txt
 
 
 3. Run the application
-streamlit run nous_chat_appv2.py
+<br>streamlit run nous_chat_appv2.py
 
 
 4. Open your browser and navigate to `http://localhost:8501`
@@ -208,16 +208,16 @@ Uygulamayı yerel olarak çalıştırmayı tercih ederseniz:
 #### Kurulum Adımları
 
 1. Kodu indirin veya klonlayın
-git clone https://github.com/bynextex/Nous-Research.git
-cd nous-chat
+<br>git clone https://github.com/bynextex/Nous-Research.git
+<br>cd nous-chat
 
 
 2. Gerekli eklentileri yükleyin
-pip install -r requirements.txt
+<br>pip install -r requirements.txt
 
 
 3. Uygulamayı çalıştırın
-streamlit run nous_chat_appv2.py
+<br>streamlit run nous_chat_appv2.py
 
 
 4. Tarayıcınızı açın ve `http://localhost:8501` adresine gidin
