@@ -12,6 +12,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 import tempfile
 import os
 import base64
+import time
 
 # Temayı kontrol et
 if "theme" not in st.session_state:
@@ -20,6 +21,10 @@ if "theme" not in st.session_state:
 # Tema ayarını yap ve sayfayı yapılandır
 theme = st.session_state.theme
 st.set_page_config(page_title="Nous Chat", layout="wide", initial_sidebar_state="expanded", page_icon="🧠")
+
+# Input key için benzersiz değer oluştur
+if "input_key" not in st.session_state:
+    st.session_state.input_key = "initial_input"
 
 # DejaVu Sans fontunu ekle (Türkçe karakter desteği için)
 def setup_fonts():
@@ -151,7 +156,7 @@ def local_css():
         
         /* Ana içerik alanındaki bağlantılar */
         .main .block-container a {{
-            color: {"#4da1ff" if text_color == "#E0E0E0" else "another_color"} !important;
+            color: {"#4da1ff" if text_color == "#E0E0E0" else "#0366d6"} !important;
         }}
         
         /* Ana içerik alanındaki başlıklar */
@@ -160,11 +165,50 @@ def local_css():
         .main .block-container h3 {{
             color: {text_color};
         }}
+        
+        /* Bildirim sesi için gizli audio elementi */
+        .audio-element {{
+            display: none;
+        }}
+        
+        /* Mesaj kutusunu aşağıda sabitleme */
+        .chat-input-area {{
+            position: sticky;
+            bottom: 0;
+            background-color: {main_bg};
+            padding: 1rem 0;
+            margin-top: 1rem;
+            border-top: 1px solid {"#3e4451" if theme == "dark" else "#e1e4e8"};
+        }}
     </style>
     """, unsafe_allow_html=True)
     
 # CSS ekle
 local_css()
+
+# Sesli bildirim için audio bileşeni
+def get_audio_html():
+    return """
+    <audio id="notification-sound" class="audio-element">
+        <source src="data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjM1LjEwNAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAAgAAAWAAIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHBwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/wAAAA5MYXZmNTguMzUuMTAwAAAAAAAAAAAAAAD/80DEAAAAA0gAAAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsRbAAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsS3AAADSAAAAABVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVf/zQsT/AK8UgBmMYAQ0wAAjjQAAAVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVX/80LERAEO1AApmGAGeAAGNAAAARVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=" type="audio/mpeg">
+    </audio>
+    
+    <script>
+        function playNotificationSound() {
+            document.getElementById('notification-sound').play();
+        }
+    </script>
+    """
+
+# Bildirim sesi çalma fonksiyonu
+def play_notification_sound():
+    js_code = "playNotificationSound()"
+    html = f"""
+        <script>
+            {js_code}
+        </script>
+    """
+    st.components.v1.html(html, height=0)
 
 # Dil verilerini içeren sözlük
 ui_text = {
@@ -518,6 +562,9 @@ def toggle_theme(new_theme):
 current_lang = st.session_state.language
 texts = ui_text[current_lang]
 
+# Ses bildirimi için HTML bileşeni ekle
+st.markdown(get_audio_html(), unsafe_allow_html=True)
+
 # İki sütunlu düzen
 col1, col2 = st.columns([1, 3])
 
@@ -531,6 +578,8 @@ with col1:
         st.session_state.conversations[new_conv_name] = []
         st.session_state.current_conversation = new_conv_name
         st.session_state.chat_history = []
+        # Yeni mesaj gönderimi için input key'i güncelle
+        st.session_state.input_key = f"input_{time.time()}"
         st.rerun()
     
     # Sohbet listesi ve seçimi
@@ -595,6 +644,8 @@ with col1:
                 if st.button(conv_name, key=f"conv_{conv_name}"):
                     st.session_state.current_conversation = conv_name
                     st.session_state.chat_history = st.session_state.conversations[conv_name]
+                    # Sohbet değişimi için input key'i güncelle
+                    st.session_state.input_key = f"input_{time.time()}"
                     st.rerun()
             with col2_c:
                 # Üç nokta menüsü
@@ -637,7 +688,7 @@ with col1:
                 buffer.write(json_string)
                 buffer.seek(0)
                 
-                                # Dosya adını doğrudan sohbet adından al
+                # Dosya adını doğrudan sohbet adından al
                 filename = f"{st.session_state.current_conversation}.json"
                 st.download_button(
                     label="JSON" if current_lang == "English" else "JSON İndir",
@@ -679,6 +730,8 @@ with col1:
     if st.button(texts["clear"]):
         st.session_state.chat_history = []
         st.session_state.conversations[st.session_state.current_conversation] = []
+        # Sohbeti temizlediğimizde input key'i güncelle
+        st.session_state.input_key = f"input_{time.time()}"
         st.rerun()
 
 with col2:
@@ -804,80 +857,99 @@ with col2:
     if use_custom_system:
         system_message = st.sidebar.text_area(texts["custom_msg"], value=system_message, height=150)
     
-    # Kullanıcı mesajı
-    user_prompt = st.text_area(texts["write_msg"], height=150)
+    # Sohbet geçmişi - Önce bu gösterilecek
+    chat_container = st.container()
     
-    # Gönder butonu
-    if st.button(texts["send"]):
-        if not api_key:
-            st.warning(texts["warning_api"])
-        elif not user_prompt.strip():
-            st.warning(texts["warning_prompt"])
-        else:
-            with st.spinner(texts["waiting"]):
-                headers = {
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json"
-                }
-    
-                data = {
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_message},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "temperature": temperature,
-                    "max_tokens": max_tokens
-                }
-    
-                response = requests.post(
-                    "https://inference-api.nousresearch.com/v1/chat/completions", 
-                    headers=headers,
-                    json=data
-                )
-    
-                if response.status_code == 200:
-                    response_json = response.json()
-                    reply = response_json["choices"][0]["message"]["content"]
-    
-                    # Token kullanımını güncelle (API dönüşünde varsa)
-                    if "usage" in response_json:
-                        usage = response_json["usage"]
-                        st.session_state.token_usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
-                        st.session_state.token_usage["completion_tokens"] += usage.get("completion_tokens", 0)
-                        st.session_state.token_usage["total_tokens"] += usage.get("total_tokens", 0)
-                        
-                        # Maliyet tahmini (tahmini fiyat modele göre değişebilir)
-                        prompt_cost = usage.get("prompt_tokens", 0) * 0.000001  # Örnek fiyat
-                        completion_cost = usage.get("completion_tokens", 0) * 0.000002  # Örnek fiyat
-                        total_cost = prompt_cost + completion_cost
-                        st.session_state.total_cost += total_cost
-    
-                    # Sohbet geçmişine ekle
-                    user_label = texts["you"] if current_lang == "English" else "Siz"
-                    st.session_state.chat_history.append((user_label, user_prompt))
-                    st.session_state.chat_history.append(("Nous", reply))
-                    
-                    # Mevcut konuşmayı güncelle
-                    st.session_state.conversations[st.session_state.current_conversation] = st.session_state.chat_history
-                    
-                    st.rerun()
+    with chat_container:
+        if st.session_state.chat_history:
+            st.subheader(texts["chat"])
+            for sender, message in st.session_state.chat_history:
+                display_sender = sender
+                if current_lang == "English" and sender == "Siz":
+                    display_sender = "You"
+                
+                if display_sender == "You" or display_sender == "Siz":
+                    st.markdown(f"<div class='user-message'><strong>{safe_text(display_sender)}:</strong> {safe_text(message)}</div>", unsafe_allow_html=True)
                 else:
-                    st.error(f"{texts['api_error']}: {response.status_code}")
-                    st.code(response.text)
+                    st.markdown(f"<div class='ai-message'><strong>{safe_text(display_sender)}:</strong> {safe_text(message)}</div>", unsafe_allow_html=True)
     
-    # Sohbet geçmişi
-    if st.session_state.chat_history:
-        st.subheader(texts["chat"])
-        for sender, message in st.session_state.chat_history:
-            display_sender = sender
-            if current_lang == "English" and sender == "Siz":
-                display_sender = "You"
-            
-            if display_sender == "You" or display_sender == "Siz":
-                st.markdown(f"<div class='user-message'><strong>{safe_text(display_sender)}:</strong> {safe_text(message)}</div>", unsafe_allow_html=True)
+    # Kullanıcı mesajı alanı - En aşağıda sabit
+    input_container = st.container()
+    
+    with input_container:
+        st.markdown("<div class='chat-input-area'>", unsafe_allow_html=True)
+        # Kullanıcı mesajı - key değerini dinamik olarak ayarla
+        user_prompt = st.text_area(
+            texts["write_msg"], 
+            key=st.session_state.input_key,
+            height=100
+        )
+        
+        # Gönder butonu
+        if st.button(texts["send"]):
+            if not api_key:
+                st.warning(texts["warning_api"])
+            elif not user_prompt.strip():
+                st.warning(texts["warning_prompt"])
             else:
-                st.markdown(f"<div class='ai-message'><strong>{safe_text(display_sender)}:</strong> {safe_text(message)}</div>", unsafe_allow_html=True)
+                with st.spinner(texts["waiting"]):
+                    headers = {
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    }
+        
+                    data = {
+                        "model": model,
+                        "messages": [
+                            {"role": "system", "content": system_message},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        "temperature": temperature,
+                        "max_tokens": max_tokens
+                    }
+        
+                    response = requests.post(
+                        "https://inference-api.nousresearch.com/v1/chat/completions", 
+                        headers=headers,
+                        json=data
+                    )
+        
+                    if response.status_code == 200:
+                        response_json = response.json()
+                        reply = response_json["choices"][0]["message"]["content"]
+        
+                        # Token kullanımını güncelle (API dönüşünde varsa)
+                        if "usage" in response_json:
+                            usage = response_json["usage"]
+                            st.session_state.token_usage["prompt_tokens"] += usage.get("prompt_tokens", 0)
+                            st.session_state.token_usage["completion_tokens"] += usage.get("completion_tokens", 0)
+                            st.session_state.token_usage["total_tokens"] += usage.get("total_tokens", 0)
+                            
+                            # Maliyet tahmini (tahmini fiyat modele göre değişebilir)
+                            prompt_cost = usage.get("prompt_tokens", 0) * 0.000001  # Örnek fiyat
+                            completion_cost = usage.get("completion_tokens", 0) * 0.000002  # Örnek fiyat
+                            total_cost = prompt_cost + completion_cost
+                            st.session_state.total_cost += total_cost
+        
+                        # Sohbet geçmişine ekle
+                        user_label = texts["you"] if current_lang == "English" else "Siz"
+                        st.session_state.chat_history.append((user_label, user_prompt))
+                        st.session_state.chat_history.append(("Nous", reply))
+                        
+                        # Mevcut konuşmayı güncelle
+                        st.session_state.conversations[st.session_state.current_conversation] = st.session_state.chat_history
+                        
+                        # Input kutusunu temizlemek için key değişimi
+                        st.session_state.input_key = f"input_{time.time()}"
+                        
+                        # Bildirim sesi çal
+                        play_notification_sound()
+                        
+                        st.rerun()
+                    else:
+                        st.error(f"{texts['api_error']}: {response.status_code}")
+                        st.code(response.text)
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Footer
     st.markdown("---")
